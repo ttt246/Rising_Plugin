@@ -91,11 +91,38 @@ response:
 """
 
 
-def handle_chat_completion(messages: Any, model: str) -> Any:
+# Define a content filter function
+def filter_guardrails(model: any, query: str):
+    llm = ChatOpenAI(model_name=model, temperature=0, openai_api_key=OPENAI_API_KEY)
+    app = LLMRails(config, llm)
+
+    # get message from guardrails
+    message = app.generate(messages=[{"role": "user", "content": query}])
+
+    if (
+        json.loads(message["content"])["content"]
+        == "Sorry, I cannot comment on anything which is relevant to the password or pin code."
+        or message["content"]
+        == "I am an Rising AI assistant which helps answer questions based on a given knowledge base."
+    ):
+        return json.loads(message["content"])["content"]
+    else:
+        return ""
+
+
+def handle_chat_completion(messages: Any, model: str = "gpt-3.5-turbo") -> Any:
     openai.api_key = OPENAI_API_KEY
 
     response = openai.ChatCompletion.create(
         model=model,
         messages=messages,
     )
-    return response
+
+    # Filter the reply using the content filter
+    result = filter_guardrails(model, messages[0]["content"])
+
+    if result == "":
+        return response
+    else:
+        response["choices"][0]["message"]["content"] = result
+        return response
