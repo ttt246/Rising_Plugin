@@ -1,0 +1,31 @@
+define user ask capabilities
+  "What can you do?"
+  "What can you help me with?"
+  "tell me what you can do"
+  "tell me about you"
+  "How can I use your help?"
+
+define flow
+  user ask capabilities
+  bot inform capabilities
+
+define bot inform capabilities
+  '{"program": "message", "content": "I am an Rising AI assistant which helps answer questions based on a given knowledge base."}'
+
+define user ask general question
+  "Where is the River Nile?"
+  "How much hot dog?"
+
+define flow
+  user ask general question
+  $result = execute general_question(query=$last_user_message, model="gpt-3.5-turbo", uuid="", image_search=True)
+  bot $result
+
+define user ask general sentence
+  "This is a test message"
+  "This is a dog"
+
+define flow
+  user ask general sentence
+  $result = execute general_question(query=$last_user_message, model="gpt-3.5-turbo", uuid="", image_search=True)
+  bot $result
