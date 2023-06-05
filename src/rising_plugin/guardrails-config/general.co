@@ -12,20 +12,8 @@ define flow
 define bot inform capabilities
   '{"program": "message", "content": "I am an Rising AI assistant which helps answer questions based on a given knowledge base."}'
 
-define user ask general question
-  "Where is the River Nile?"
-  "How much hot dog?"
-
 define flow
-  user ask general question
-  $result = execute general_question(query=$last_user_message, model="gpt-3.5-turbo", uuid="", image_search=True)
-  bot $result
-
-define user ask general sentence
-  "This is a test message"
-  "This is a dog"
-
-define flow
-  user ask general sentence
+  priority 0.9
+  user ...
   $result = execute general_question(query=$last_user_message, model="gpt-3.5-turbo", uuid="", image_search=True)
   bot $result
