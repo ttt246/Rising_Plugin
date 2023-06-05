@@ -119,7 +119,7 @@ def handle_chat_completion(messages: Any, model: str = "gpt-3.5-turbo") -> Any:
     )
 
     # Filter the reply using the content filter
-    result = filter_guardrails(model, messages[0]["content"])
+    result = filter_guardrails(model, messages[-1]["content"])
 
     if result == "":
         return response
