@@ -78,5 +78,7 @@ async def general_question(query, model, uuid, image_search):
         if doc_list[0] in COMMAND_SMS_INDEXS:
             return str(json.dumps({"program": "sms", "content": chain_data}))
         elif doc_list[0] in COMMAND_BROWSER_OPEN:
-            return str(json.dumps({"program": "browser", "content": "https://google.com"}))
+            return str(
+                json.dumps({"program": "browser", "content": "https://google.com"})
+            )
         return str(json.dumps({"program": "message", "content": chain_data}))
