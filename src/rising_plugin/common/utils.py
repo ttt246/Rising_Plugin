@@ -18,6 +18,7 @@ PINECONE_INDEX_NAME = "risinglangchain-index"
 
 # indexes of relatedness of embedding
 COMMAND_SMS_INDEXS = [4, 5]
+COMMAND_BROWSER_OPEN = [10]
 
 
 class ProgramType:
