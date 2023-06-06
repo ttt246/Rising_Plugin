@@ -34,6 +34,8 @@ from rising_plugin.image_embedding import (
 
 from nemoguardrails.actions import action
 
+from rising_plugin.common.utils import COMMAND_BROWSER_OPEN
+
 
 @action()
 async def general_question(query, model, uuid, image_search):
@@ -72,7 +74,11 @@ async def general_question(query, model, uuid, image_search):
             #     return result
         return str(result)
     except ValueError as e:
-        # Check sms query
+        # Check sms andd browser query
         if doc_list[0] in COMMAND_SMS_INDEXS:
             return str(json.dumps({"program": "sms", "content": chain_data}))
+        elif doc_list[0] in COMMAND_BROWSER_OPEN:
+            return str(
+                json.dumps({"program": "browser", "content": "https://google.com"})
+            )
         return str(json.dumps({"program": "message", "content": chain_data}))
