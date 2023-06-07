@@ -9,7 +9,9 @@ from .common.utils import OPENAI_API_KEY
 
 def csv_embed():
     file_path = os.path.dirname(os.path.abspath(__file__))
-    loader = CSVLoader(file_path=f"{file_path}/guardrails-config/actions/phone.csv", encoding="utf8")
+    loader = CSVLoader(
+        file_path=f"{file_path}/guardrails-config/actions/phone.csv", encoding="utf8"
+    )
     data = loader.load()
 
     result = list()
