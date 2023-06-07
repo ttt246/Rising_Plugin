@@ -40,8 +40,9 @@ def getCompletion(
 
 def query_image_ask(image_content, message, uuid):
     prompt_template = get_prompt_image_with_message(image_content, message)
-    data = getCompletion(prompt_template, uuid, False)
-    chain_data = json.loads(data.replace("'", '"'))
+    data = getCompletion(query=prompt_template, uuid=uuid, image_search=False)
+    # chain_data = json.loads(data.replace("'", '"'))
+    chain_data = json.loads(data)
     if chain_data["program"] == "image":
         return True
     return False
