@@ -9,14 +9,16 @@ from .common.utils import OPENAI_API_KEY
 
 def csv_embed():
     file_path = os.path.dirname(os.path.abspath(__file__))
-    loader = CSVLoader(file_path=f"{file_path}/phone.csv", encoding="utf8")
+    loader = CSVLoader(
+        file_path=f"{file_path}/guardrails-config/actions/phone.csv", encoding="utf8"
+    )
     data = loader.load()
 
     result = list()
     for t in data:
         query_result = get_embed(t.page_content)
         result.append(query_result)
-    with open(f"{file_path}/phone.json", "w") as outfile:
+    with open(f"{file_path}/guardrails-config/actions/phone.json", "w") as outfile:
         json.dump(result, outfile, indent=2)
 
 
