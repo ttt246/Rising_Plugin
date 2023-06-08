@@ -27,14 +27,13 @@ from langchain.docstore.document import Document
 from rising_plugin.common.utils import (
     OPENAI_API_KEY,
     COMMAND_SMS_INDEXS,
+    COMMAND_BROWSER_OPEN,
 )
 from rising_plugin.image_embedding import (
     query_image_text,
 )
 
 from nemoguardrails.actions import action
-
-from rising_plugin.common.utils import COMMAND_BROWSER_OPEN
 
 
 @action()
@@ -74,7 +73,7 @@ async def general_question(query, model, uuid, image_search):
             #     return result
         return str(result)
     except ValueError as e:
-        # Check sms andd browser query
+        # Check sms and browser query
         if doc_list[0] in COMMAND_SMS_INDEXS:
             return str(json.dumps({"program": "sms", "content": chain_data}))
         elif doc_list[0] in COMMAND_BROWSER_OPEN:
