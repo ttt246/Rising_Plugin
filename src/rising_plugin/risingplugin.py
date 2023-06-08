@@ -1,14 +1,16 @@
 import os
 import json
 import datetime
+import openai
+import replicate
+import textwrap
+
 from typing import Any
 
 from nemoguardrails.rails import LLMRails, RailsConfig
 
 from langchain.chat_models import ChatOpenAI
-import openai
 
-import replicate
 from firebase_admin import storage
 
 from .common.utils import (
@@ -32,10 +34,38 @@ def getCompletion(
     image_search=True,
 ):
     llm = ChatOpenAI(model_name=model, temperature=0, openai_api_key=OPENAI_API_KEY)
-    app = LLMRails(config, llm)
 
-    message = app.generate(messages=[{"role": "user", "content": query}])
-    return message["content"]
+    # max_chunk_size = 2048
+    max_chunk_size = 2000
+    # Break input text into chunks
+    chunks = textwrap.wrap(
+        query, width=max_chunk_size, break_long_words=False, replace_whitespace=False
+    )
+
+    app = LLMRails(config, llm)
+    program = ""
+    response_text: str = ""
+    for chunk in chunks:
+        # Process each chunk with ChatGPT
+        message = app.generate(
+            messages=[
+                {
+                    "role": "user",
+                    "content": "Please give me summarize from below context. \n"
+                    + chunk,
+                }
+            ]
+        )
+        # Combine the chunk responses
+        try:
+            response_text += json.loads(message["content"])["content"]
+        except Exception as e:
+            # fmt: off
+            message["content"] = message["content"].replace("\'", '"')
+            # fmt: on
+            response_text += json.loads(message["content"])["content"]
+        program = json.loads(message["content"])["program"]
+    return {"program": program, "content": response_text}
 
 
 def query_image_ask(image_content, message, uuid):
