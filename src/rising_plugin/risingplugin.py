@@ -26,24 +26,17 @@ from .image_embedding import (
 file_path = os.path.dirname(os.path.abspath(__file__))
 config = RailsConfig.from_path(f"{file_path}/guardrails-config")
 
+# set max_chunk_size = 1800 because of adding some string
+max_chunk_size = 1800  # recommended max_chunk_size = 2048
 
-def getCompletion(
-    query,
-    model="gpt-3.5-turbo",
-    uuid="",
-    image_search=True,
-):
-    llm = ChatOpenAI(model_name=model, temperature=0, openai_api_key=OPENAI_API_KEY)
 
-    # max_chunk_size = 2048
-    max_chunk_size = 1800
-    # Break input text into chunks
-    chunks = textwrap.wrap(
+def getChunks(query: str):
+    return textwrap.wrap(
         query, width=max_chunk_size, break_long_words=False, replace_whitespace=False
     )
 
-    app = LLMRails(config, llm)
 
+def processLargeText(app: any, chunks: any):
     if len(chunks) == 1:
         message = app.generate(
             messages=[
@@ -55,14 +48,13 @@ def getCompletion(
         )
         return message["content"]["content"]
     else:
-        program = ""
         response_text: str = ""
         first_query = "The total length of the content that I want to send you is too large to send in only one piece.\nFor sending you that content, I will follow this rule:\n[START PART 1/10]\nThis is the content of the part 1 out of 10 in total\n[END PART 1/10]\nThen you just answer: 'Received part 1/10'\nAnd when I tell you 'ALL PART SENT', then you can continue processing the data and answering my requests."
         message = app.generate(messages=[{"role": "user", "content": first_query}])
         for index, chunk in enumerate(chunks):
             # Process each chunk with ChatGPT
             if index + 1 != len(chunks):
-                request_query = (
+                chunk_query = (
                     "Do not answer yet. This is just another part of the text I want to send you. Just receive and acknowledge as 'Part "
                     + str(index + 1)
                     + "/"
@@ -85,12 +77,11 @@ def getCompletion(
                     messages=[
                         {
                             "role": "user",
-                            "content": request_query,
+                            "content": chunk_query,
                         }
                     ]
                 )
             else:
-                # out of for-loop
                 last_query = (
                     "[START PART "
                     + str(index + 1)
@@ -116,6 +107,22 @@ def getCompletion(
                     response_text = json.loads(message["content"])["content"]
                 program = json.loads(message["content"])["program"]
                 return {"program": program, "content": response_text}
+        # out of for-loop
+
+
+def getCompletion(
+    query,
+    model="gpt-3.5-turbo",
+    uuid="",
+    image_search=True,
+):
+    llm = ChatOpenAI(model_name=model, temperature=0, openai_api_key=OPENAI_API_KEY)
+
+    # Break input text into chunks
+    chunks = getChunks(query)
+
+    app = LLMRails(config, llm)
+    return processLargeText(app, chunks)
 
 
 def query_image_ask(image_content, message, uuid):
