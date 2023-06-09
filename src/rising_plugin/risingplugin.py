@@ -46,7 +46,15 @@ def processLargeText(app: any, chunks: any):
                 }
             ]
         )
-        return message["content"]["content"]
+        response_text = ""
+        try:
+            response_text += json.loads(message["content"])["content"]
+        except Exception as e:
+            # fmt: off
+            message["content"] = message["content"].replace("\'", '"')
+            # fmt: on
+            response_text = json.loads(message["content"])["content"]
+        return response_text
     else:
         response_text: str = ""
         first_query = "The total length of the content that I want to send you is too large to send in only one piece.\nFor sending you that content, I will follow this rule:\n[START PART 1/10]\nThis is the content of the part 1 out of 10 in total\n[END PART 1/10]\nThen you just answer: 'Received part 1/10'\nAnd when I tell you 'ALL PART SENT', then you can continue processing the data and answering my requests."
@@ -184,16 +192,19 @@ def filter_guardrails(model: any, query: str):
     llm = ChatOpenAI(model_name=model, temperature=0, openai_api_key=OPENAI_API_KEY)
     app = LLMRails(config, llm)
 
+    # split query with chunks
+    chunks = getChunks(query)
+
     # get message from guardrails
-    message = app.generate(messages=[{"role": "user", "content": query}])
+    message = processLargeText(app, chunks)
 
     if (
-        json.loads(message["content"])["content"]
+        message
         == "Sorry, I cannot comment on anything which is relevant to the password or pin code."
-        or message["content"]
+        or message
         == "I am an Rising AI assistant which helps answer questions based on a given knowledge base."
     ):
-        return json.loads(message["content"])["content"]
+        return message
     else:
         return ""
 
