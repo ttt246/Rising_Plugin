@@ -1,14 +1,16 @@
 import os
 import json
 import datetime
+import openai
+import replicate
+import textwrap
+
 from typing import Any
 
 from nemoguardrails.rails import LLMRails, RailsConfig
 
 from langchain.chat_models import ChatOpenAI
-import openai
 
-import replicate
 from firebase_admin import storage
 
 from .common.utils import (
@@ -24,6 +26,97 @@ from .image_embedding import (
 file_path = os.path.dirname(os.path.abspath(__file__))
 config = RailsConfig.from_path(f"{file_path}/guardrails-config")
 
+# set max_chunk_size = 1800 because of adding some string
+max_chunk_size = 1800  # recommended max_chunk_size = 2048
+
+
+def getChunks(query: str):
+    return textwrap.wrap(
+        query, width=max_chunk_size, break_long_words=False, replace_whitespace=False
+    )
+
+
+def processLargeText(app: any, chunks: any):
+    if len(chunks) == 1:
+        message = app.generate(
+            messages=[
+                {
+                    "role": "user",
+                    "content": chunks[0],
+                }
+            ]
+        )
+        response_text = ""
+        try:
+            response_text += json.loads(message["content"])["content"]
+        except Exception as e:
+            # fmt: off
+            message["content"] = message["content"].replace("\'", '"')
+            # fmt: on
+            response_text = json.loads(message["content"])["content"]
+        return response_text
+    else:
+        response_text: str = ""
+        first_query = "The total length of the content that I want to send you is too large to send in only one piece.\nFor sending you that content, I will follow this rule:\n[START PART 1/10]\nThis is the content of the part 1 out of 10 in total\n[END PART 1/10]\nThen you just answer: 'Received part 1/10'\nAnd when I tell you 'ALL PART SENT', then you can continue processing the data and answering my requests."
+        message = app.generate(messages=[{"role": "user", "content": first_query}])
+        for index, chunk in enumerate(chunks):
+            # Process each chunk with ChatGPT
+            if index + 1 != len(chunks):
+                chunk_query = (
+                    "Do not answer yet. This is just another part of the text I want to send you. Just receive and acknowledge as 'Part "
+                    + str(index + 1)
+                    + "/"
+                    + str(len(chunks))
+                    + "received' and wait for the next part.\n"
+                    + "[START PART "
+                    + str(index + 1)
+                    + "/"
+                    + str(len(chunks))
+                    + "]\n"
+                    + chunk
+                    + "\n[END PART "
+                    + str(index + 1)
+                    + "/"
+                    + str(len(chunks))
+                    + "]\n"
+                    + "Remember not answering yet. Just acknowledge you received this part with the message 'Part 1/10 received' and wait for the next part."
+                )
+                message = app.generate(
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": chunk_query,
+                        }
+                    ]
+                )
+            else:
+                last_query = (
+                    "[START PART "
+                    + str(index + 1)
+                    + "/"
+                    + str(len(chunks))
+                    + chunk
+                    + "\n[END PART "
+                    + str(index + 1)
+                    + "/"
+                    + str(len(chunks))
+                    + "]\n"
+                    + "ALL PART SENT. Now you can continue processing the request."
+                )
+                message = app.generate(
+                    messages=[{"role": "user", "content": last_query}]
+                )
+                try:
+                    response_text += json.loads(message["content"])["content"]
+                except Exception as e:
+                    # fmt: off
+                    message["content"] = message["content"].replace("\'", '"')
+                    # fmt: on
+                    response_text = json.loads(message["content"])["content"]
+                program = json.loads(message["content"])["program"]
+                return {"program": program, "content": response_text}
+        # out of for-loop
+
 
 def getCompletion(
     query,
@@ -32,10 +125,12 @@ def getCompletion(
     image_search=True,
 ):
     llm = ChatOpenAI(model_name=model, temperature=0, openai_api_key=OPENAI_API_KEY)
-    app = LLMRails(config, llm)
 
-    message = app.generate(messages=[{"role": "user", "content": query}])
-    return message["content"]
+    # Break input text into chunks
+    chunks = getChunks(query)
+
+    app = LLMRails(config, llm)
+    return processLargeText(app, chunks)
 
 
 def query_image_ask(image_content, message, uuid):
@@ -97,16 +192,19 @@ def filter_guardrails(model: any, query: str):
     llm = ChatOpenAI(model_name=model, temperature=0, openai_api_key=OPENAI_API_KEY)
     app = LLMRails(config, llm)
 
+    # split query with chunks
+    chunks = getChunks(query)
+
     # get message from guardrails
-    message = app.generate(messages=[{"role": "user", "content": query}])
+    message = processLargeText(app, chunks)
 
     if (
-        json.loads(message["content"])["content"]
+        message
         == "Sorry, I cannot comment on anything which is relevant to the password or pin code."
-        or message["content"]
+        or message
         == "I am an Rising AI assistant which helps answer questions based on a given knowledge base."
     ):
-        return json.loads(message["content"])["content"]
+        return message
     else:
         return ""
 
